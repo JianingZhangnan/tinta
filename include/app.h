@@ -2161,7 +2161,12 @@ inline bool editorLiveOn(const App& app) {
     return app.editMode && app.editorLive && !app.editorReadingPreview && !app.editorRawDocument;
 }
 
+inline bool largeRawText(const App& app) {
+    return app.editorRawDocument && app.editorText.size() >= 8 * 1024 * 1024;
+}
+
 inline float editorPaneWidth(const App& app) {
+    if (largeRawText(app)) return static_cast<float>(app.width);
     if (app.editorReadingPreview || editorLiveOn(app)) return 0;
     return app.editorShowPreview
         ? app.width * app.editorSplitRatio - editSeamWidth(app) * 0.5f
@@ -2181,7 +2186,7 @@ inline float editorGutterWidth(const App& app) {
 }
 
 inline bool editorWrapOn(const App& app) {
-    return app.editorWordWrap;
+    return app.editorWordWrap && !largeRawText(app);
 }
 
 // Folder browser panel width — shared by input hit-testing, the panel
@@ -2234,6 +2239,7 @@ inline float folderBrowserPanelWidth(const App& app) { return sidePanelWidths(ap
 inline float tocPanelWidth(const App& app) { return sidePanelWidths(app).toc; }
 
 inline float documentViewportX(const App& app) {
+    if (app.editMode && largeRawText(app)) return static_cast<float>(app.width);
     if (app.editMode && app.editorReadingPreview) return 0;
     if (!app.editMode) {
         // Side panels push the content aside instead of covering it; the
@@ -2261,7 +2267,7 @@ inline float documentViewportX(const App& app) {
 }
 
 inline bool editorPreviewVisible(const App& app) {
-    return app.editMode && (app.editorShowPreview || app.editorReadingPreview || editorLiveOn(app));
+    return app.editMode && !largeRawText(app) && (app.editorShowPreview || app.editorReadingPreview || editorLiveOn(app));
 }
 
 // The split editor is up: the source with the preview docked beside it,
@@ -2271,7 +2277,7 @@ inline bool editorPreviewVisible(const App& app) {
 // chrome (#242). The seam and the pane chrome ask this; document
 // rendering keeps asking editorPreviewVisible, which is true in both.
 inline bool editSplitPreview(const App& app) {
-    return app.editMode && app.editorShowPreview && !app.editorReadingPreview && !editorLiveOn(app);
+    return app.editMode && !largeRawText(app) && app.editorShowPreview && !app.editorReadingPreview && !editorLiveOn(app);
 }
 
 // The Read / Edit pill floats over the bottom-left corner in edit mode

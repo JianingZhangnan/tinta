@@ -14,7 +14,7 @@ endif()
 
 # Compiler flags
 if(MSVC)
-    add_compile_options(/W4)
+    add_compile_options(/W4 /utf-8)
     add_compile_options($<$<CONFIG:Release>:/O2>)
     add_compile_definitions(NOMINMAX _CRT_SECURE_NO_WARNINGS)
     # Static CRT: the exe must run on clean Windows installs without the
@@ -286,6 +286,26 @@ set(RESOURCES
 add_executable(tinta WIN32 ${SOURCES} ${HEADERS} ${RESOURCES})
 add_dependencies(tinta csl_bundle)
 
+set(TINTA_WEBVIEW2_SDK "" CACHE PATH "Optional WebView2 SDK for exact FPKS math/LaTeX Suite")
+if(TINTA_WEBVIEW2_SDK)
+    if(POLICY CMP0112)
+        cmake_policy(SET CMP0112 NEW)
+    endif()
+    target_sources(tinta PRIVATE src/fpks_math.cpp)
+    target_include_directories(tinta PRIVATE "${TINTA_WEBVIEW2_SDK}/build/native/include")
+    add_custom_target(fpks_assets
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+          "${CMAKE_CURRENT_SOURCE_DIR}/web/dist" "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/fpks")
+    add_dependencies(tinta fpks_assets)
+    add_custom_command(TARGET tinta POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${TINTA_WEBVIEW2_SDK}/build/native/x64/WebView2Loader.dll" "$<TARGET_FILE_DIR:tinta>/WebView2Loader.dll"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+          "${CMAKE_CURRENT_SOURCE_DIR}/web/dist" "$<TARGET_FILE_DIR:tinta>/fpks")
+else()
+    target_sources(tinta PRIVATE src/fpks_math_stub.cpp)
+endif()
+
 target_include_directories(tinta PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${md4c_SOURCE_DIR}/src
@@ -322,6 +342,9 @@ target_compile_definitions(tinta PRIVATE UNICODE _UNICODE
     TINTA_VERSION_PATCH=${PROJECT_VERSION_PATCH})
 
 if(BUILD_TESTING)
+    add_executable(edit_delta_tests tests/edit_delta_tests.cpp)
+    target_include_directories(edit_delta_tests PRIVATE include)
+    add_test(NAME fpks_edit_delta COMMAND edit_delta_tests)
     add_executable(keymap_tests tests/keymap_tests.cpp src/keymap.cpp)
     target_include_directories(keymap_tests PRIVATE include)
     add_test(NAME keymap COMMAND keymap_tests)

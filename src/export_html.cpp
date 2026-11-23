@@ -1550,6 +1550,11 @@ std::string cssFontList(const std::wstring& family, bool mono) {
 
 }  // namespace
 
+std::string exportDiagramSvg(App& app, const std::string& sourceUtf8) {
+    return diagramSvg(app, sourceUtf8, cssFontList(app.theme.fontFamily, false),
+                      cssFontList(app.theme.codeFontFamily, true));
+}
+
 bool exportHtmlFile(App& app, const std::wstring& path) {
     if (!app.root) return false;
 

@@ -1,4 +1,5 @@
 #include "input.h"
+#include "editor.h"
 #include "d2d_init.h"
 #include "keystroke.h"
 #include "overlays.h"
@@ -169,6 +170,16 @@ void settingsDismissal() {
               "the icon menu's opening click cannot immediately dismiss settings");
         break;
     }
+    app.editMode = false;
+    app.currentFile = "large-native-test.txt";
+    app.sourceText.assign(8 * 1024 * 1024, 'x');
+    app.editorWordWrap = true;
+    app.editorShowPreview = true;
+    check(applyLargeTextOpenMode(app), "large plain text opens through viewport source editor");
+    check(largeRawText(app) && !editorPreviewVisible(app) && !editorWrapOn(app), "large raw text avoids full preview/wrap layout");
+    check(editorPaneWidth(app) == app.width, "large raw text uses the full source viewport");
+    check(app.editorWordWrap && app.editorShowPreview, "large raw text preserves saved preview and wrap preferences");
+    app.editorDirty = false;
     DestroyWindow(app.hwnd);
     app.hwnd = nullptr;
     state.reset();

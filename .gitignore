@@ -29,5 +29,10 @@ Package.StoreAssociation.xml
 Thumbs.db
 CLAUDE.md
 
-# Website (separate repo)
-web/
+# The optional FPKS client is source-controlled; generated assets are not.
+web/node_modules/
+web/dist/
+build-fpks/
+build-baseline/
+*.local.json
+_cache/

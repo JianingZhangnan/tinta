@@ -17,6 +17,8 @@ void exportDocumentAs(App& app, HWND hwnd);
 
 // Direct writers (also callable from tests/tools)
 bool exportHtmlFile(App& app, const std::wstring& path);
+// Shares the existing native diagram renderer with the optional math view.
+std::string exportDiagramSvg(App& app, const std::string& sourceUtf8);
 bool exportDocxFile(App& app, const std::wstring& path);
 // PDF rides the print pipeline into the Microsoft Print to PDF driver with
 // the job output redirected to the file: vector pages, embedded fonts, no

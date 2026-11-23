@@ -12,6 +12,9 @@ void enterEditMode(App& app);
 // openModeApplies says whether the file in the window is one it takes.
 bool openModeApplies(const App& app);
 void applyOpenMode(App& app);
+// Large plain text uses the viewport-based source editor, avoiding a giant
+// code-block layout before the first frame. Preferences remain unchanged.
+bool applyLargeTextOpenMode(App& app);
 // Ctrl+N quick note: edit mode on an untitled empty buffer with no backing
 // file; the first save routes through the classic Save As dialog
 void enterQuickNoteMode(App& app);

@@ -360,7 +360,7 @@ void tabActivate(App& app, HWND hwnd, int index) {
     // the view Markdown files open in (#322)
     if (tab.openModePending) {
         tab.openModePending = false;
-        applyOpenMode(app);
+        if (!applyLargeTextOpenMode(app)) applyOpenMode(app);
     }
     app.showTabSwitcher = false;
     // An open search follows to the new document: its highlights, count

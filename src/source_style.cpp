@@ -519,6 +519,7 @@ void sourceHighlightFrame(App& app) {
 }
 
 void sourceHighlightLine(App& app, IDWriteTextLayout* layout, size_t lineStart, size_t lineLength) {
+    if (largeRawText(app)) return;
     if (!app.editorHighlight || !layout || !lineLength || app.editorLineStarts.empty()) return;
     State& S = state(app);
     if (!palette(app, S)) return;

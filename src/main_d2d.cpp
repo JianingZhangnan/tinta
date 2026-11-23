@@ -54,6 +54,7 @@
 #include "search_panel.h"
 #include "sheet_ui.h"
 #include "zotero.h"
+#include "fpks_math.h"
 #include <dbghelp.h>
 #pragma comment(lib, "dbghelp.lib")
 
@@ -143,6 +144,7 @@ static void renderChromeAndEnd(App& app);
 
 void render(App& app) {
     if (!app.renderTarget) return;
+    const bool fpksFrame = fpks::frame(app);
 
     // A sheet draws its cards' content before the frame begins: the
     // layout it borrows must not change under a frame in progress
@@ -150,6 +152,11 @@ void render(App& app) {
 
     app.renderTarget->BeginDraw();
     app.drawCalls = 0;
+    if (fpksFrame) {
+        app.renderTarget->Clear(app.theme.background);
+        renderChromeAndEnd(app);
+        return;
+    }
 
     // Print preview replaces the whole frame: the document is in print
     // layout while it is open, so the normal paths would draw nonsense
@@ -235,6 +242,10 @@ void render(App& app) {
 
         // Render editor (left pane; full width when the preview is hidden)
         if (!app.editorReadingPreview && !livePage) renderEditor(app, editorWidth);
+        if (largeRawText(app)) {
+            renderChromeAndEnd(app);
+            return;
+        }
 
         // The docked pane's page and the seam hairline first, then the
         // document clips into its pane: the whole window in the reading
@@ -1145,6 +1156,7 @@ static void renderChromeAndEnd(App& app) {
     if (app.createRefPending) renderCreateRefDialog(app);
 
     app.renderTarget->EndDraw();
+    fpks::nativeFrame();
 }
 
 // --- Update check ---
@@ -1896,6 +1908,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_DESTROY:
+            fpks::shutdown();
             KillTimer(hwnd, TIMER_FILE_WATCH);
             KillTimer(hwnd, 2); // TIMER_EDITOR_REPARSE
             KillTimer(hwnd, TIMER_CURSOR_BLINK);
@@ -2330,13 +2343,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     // Load document
     t0 = Clock::now();
 
-    auto loadDocumentContent = [&](const std::string& content, std::string_view path) {
+    auto loadDocumentContent = [&](std::string content, std::string_view path) {
         auto result = parseDocument(app.parser, content, path);
         if (result.success) {
             app.root = result.root;
             app.parseTimeUs = result.parseTimeUs;
             // Review annotations derive from the raw source (#126)
-            app.sourceText = content;
+            app.sourceText = std::move(content);
             for (const auto& e : app.root->children)
                 if (e->type == ElementType::Properties) observeFrontmatter(app, e->properties);
             annotationsParseSource(app);
@@ -2456,7 +2469,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     // window at its size and nothing drawn yet: the first frame is the
     // editor's, not the page's for a moment before it
     if (!quickNote && !startInEditMode && printPagesDir.empty() && (!inputFile.empty() || restoreSession)) {
-        applyOpenMode(app);
+        if (!applyLargeTextOpenMode(app)) applyOpenMode(app);
     }
     UpdateWindow(app.hwnd);
     app.metrics.showWindowUs = usElapsed(t0);

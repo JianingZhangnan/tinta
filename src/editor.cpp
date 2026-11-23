@@ -1639,7 +1639,7 @@ static void scheduleReparse(App& app) {
     }
     // No preview pane and no word count — nothing to keep in sync until
     // one of them is shown again
-    if (!app.editorShowPreview && !app.showWordCount && !editorLiveOn(app)) return;
+    if (largeRawText(app) || (!app.editorShowPreview && !app.showWordCount && !editorLiveOn(app))) return;
     // Debounce: coalesce rapid typing into one reparse per pause. WM_TIMER
     // calls editorReparse, which kills the timer. 300ms so brief pauses
     // mid-typing (common with IME input) don't trigger a full preview
@@ -1875,6 +1875,13 @@ void editorScrollToSourceOffset(App& app, size_t byteOffset) {
     InvalidateRect(app.hwnd, nullptr, FALSE);
 }
 
+bool applyLargeTextOpenMode(App& app) {
+    if (app.editMode || !isPlainTextDocumentPath(app.currentFile) || app.sourceText.size() < 8 * 1024 * 1024) return false;
+    enterEditModeWithContent(app, app.sourceText, false);
+    updateWindowTitle(app);
+    return true;
+}
+
 void restoreEditBuffer(App& app, const std::wstring& text, bool dirty,
                        float scrollY, size_t cursor, bool bom) {
     std::string content = toUtf8(text);
@@ -2067,9 +2074,10 @@ void exitEditMode(App& app) {
     } else if (file) {
         std::stringstream buf;
         buf << file.rdbuf();
-        auto result = parseDocument(app.parser, buf.str(), app.currentFile);
+        auto content = buf.str();
+        auto result = parseDocument(app.parser, content, app.currentFile);
         if (result.success) {
-            app.sourceText = buf.str();
+            app.sourceText = std::move(content);
             annotationsParseSource(app);  // the notes are where the saved text has them
             app.root = result.root;
             app.parseTimeUs = result.parseTimeUs;
@@ -2880,6 +2888,7 @@ static std::wstring editorCountLabel(const App& app, const TextCounts* selection
 // characters drop out, then the whole chip, when the pane is too narrow.
 void renderEditorWordCount(App& app) {
     app.editorWordCountRect = {};
+    if (largeRawText(app)) return; // Word counting must not hold up the first viewport.
     if (!app.editMode || !app.showWordCount || !app.brush || !app.codeFormat ||
         !app.dwriteFactory) {
         return;
