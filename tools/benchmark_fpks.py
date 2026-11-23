@@ -5,8 +5,11 @@ Memory is private committed memory summed over this process and its children;
 working sets are reported separately and may double-count shared pages.
 No existing Tinta process is terminated or reconfigured.
 """
-import os,sys,time,json,shutil,subprocess,statistics,ctypes
+import os,sys,time,json,shutil,subprocess,statistics,ctypes,argparse
 from pathlib import Path
+args=argparse.ArgumentParser(description=__doc__)
+args.add_argument('--original',type=Path,help='Official baseline executable, kept outside the customized installation')
+options=args.parse_args()
 sys.path.insert(0,r'D:\Program Files\_cache\Tinta\benchmark-python')
 import psutil
 root=Path(__file__).resolve().parents[1]
@@ -29,8 +32,9 @@ checkUpdates=0
 openInTabs=0
 reopenTabs=0
 '''
+baseline=Path(r'D:\Program Files\_cache\Tinta\rollback\4.1.3-official-20261123\tinta.exe')
 variants={
- 'original':Path(r'D:\Program Files\Tinta\tinta.exe'),
+ 'original':options.original or (baseline if baseline.exists() else Path(r'D:\Program Files\Tinta\tinta.exe')),
  'fpks':root/'build-fpks'/'tinta.exe',
 }
 bins={}
@@ -57,7 +61,7 @@ def launch(label,case,run):
   try:
    m=item.memory_info();memory.append({'pid':item.pid,'name':item.name(),'private':m.private,'working_set':m.rss})
   except psutil.NoSuchProcess:pass
- row={'variant':label,'case':case,'run':run,'input_idle_ms':input_ms,'input_idle_result':idle,'processes':len(memory),
+ row={'variant':label,'case':case,'run':run,'sample_after_idle_seconds':4 if case=='math' else 1,'input_idle_ms':input_ms,'input_idle_result':idle,'processes':len(memory),
       'private_mib':sum(m['private'] for m in memory)/2**20,'working_set_sum_mib':sum(m['working_set'] for m in memory)/2**20,'events':events}
  for item in reversed(children):
   try:item.terminate()

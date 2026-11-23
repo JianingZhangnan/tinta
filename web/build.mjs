@@ -1,5 +1,5 @@
 import {build} from 'esbuild';
-import {mkdir, copyFile,readFile,writeFile,readdir} from 'node:fs/promises';
+import {mkdir, copyFile,readFile,writeFile,readdir,unlink} from 'node:fs/promises';
 import {buildParserFile} from '@lezer/generator';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
@@ -17,6 +17,13 @@ const bundle=await build({entryPoints:['app.js','editor.ts','preview-worker.js']
   tsconfigRaw:{compilerOptions:{useDefineForClassFields:false,baseUrl:path.join(root,'../third_party/latex-suite'),paths:{'src/*':['src/*']}}},
   banner:{js:'var require = (name) => { throw new Error("Unsupported module: " + name); };'},
   loader:{'.svg':'text'},logLevel:'info'});
+// Esbuild leaves old hashed chunks behind. Remove only obsolete generated
+// JavaScript files, so rebuilds and portable packages do not grow indefinitely.
+const currentOutputs=new Set(Object.keys(bundle.metafile.outputs).map(file=>path.resolve(file)));
+for(const file of await readdir(path.join(root,'dist'))){
+ const absolute=path.join(root,'dist',file);
+ if(file.endsWith('.js')&&!currentOutputs.has(absolute))await unlink(absolute);
+}
 for(const name of ['index.html','style.css']) await copyFile(path.join(root,'src',name),path.join(root,'dist',name));
 const packages=new Set(Object.keys(bundle.metafile.inputs).map(file=>file.replaceAll('\\','/').match(/(?:^|\/)node_modules\/((?:@[^/]+\/)?[^/]+)/)?.[1]).filter(Boolean));
 let notices='Tinta FPKS web dependencies\n\nLaTeX Suite 1.12.8\n'+await readFile(path.join(root,'../third_party/latex-suite/LICENSE.md'),'utf8');
