@@ -90,6 +90,9 @@ positions and input ownership prevent feedback loops. Reflow and lazy math
 invalidate the preview's geometry cache; source anchors retain the current
 position across reading/editing and source-only view changes. Ctrl+Home/End
 synchronize document boundaries. Native menu saves keep CodeMirror history.
+The two main panes hide Chromium's permanent scrollbar tracks and their
+reserved gutter; wheel, touch and keyboard scrolling remain available.
+Long equations, tables and code retain their separate horizontal controls.
 The `fpks-scroll-sync.md` mixed fixture is exercised at normal/narrow widths
 with both scroll directions and mode changes, as well as in actual windows.
 

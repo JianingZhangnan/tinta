@@ -57,6 +57,10 @@ try{
  });
  await report('source and preview scroll in both directions using content anchors',async()=>{
   const text=await fs.readFile('../tests/fixtures/fpks-scroll-sync.md','utf8');await load(text);
+  for(const selector of ['.cm-scroller','#preview']){
+   const box=await page.locator(selector).evaluate(e=>({gutter:e.offsetWidth-e.clientWidth,overflow:e.scrollHeight-e.clientHeight}));
+   assert.ok(box.overflow>500,'both panes retain scrollable content');assert.ok(box.gutter<=1,'pane scrollbars do not reserve a permanent gutter');
+  }
   const scroll=async(side,top)=>{await page.locator(side==='editor'?'.cm-scroller':'#preview').evaluate((e,top)=>{e.dispatchEvent(new WheelEvent('wheel',{deltaY:1,bubbles:true}));e.scrollTop=top},top);await page.waitForTimeout(240)};
   const aligned=async()=>{await page.waitForFunction(()=>{const s=fpksDiagnostics().scroll;return Math.abs(s.editor-s.preview)<2.2},{},{timeout:5000});};
   await scroll('editor',700);await aligned();
