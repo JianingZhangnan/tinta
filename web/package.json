@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "test": "npm run build && node tests/regression.mjs"
+    "test": "node --test tests/*.test.mjs && npm run build && node tests/regression.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "6.10.1",

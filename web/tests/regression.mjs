@@ -76,6 +76,23 @@ try{
   await page.emulateMedia({media:'print'});assert.equal(await page.locator('mjx-container').first().evaluate(e=>getComputedStyle(e).color),'rgb(48, 43, 39)');
   await page.pdf({path:'../build-fpks/fpks-print.pdf',format:'A4'});await page.screenshot({path:'../build-fpks/print-math.png'});await page.emulateMedia({media:'screen'});
  });
+ await report('callout formulas exclude quote markers at normal/narrow widths and in PDF',async()=>{
+  const text=await fs.readFile('../tests/fixtures/fpks-callout-math.md','utf8');
+  await load(text,false);await page.locator('#preview').evaluate(e=>e.scrollTop=0);
+  await page.waitForFunction(()=>[...document.querySelectorAll('#preview>blockquote:first-of-type .math-block')].every(e=>e.dataset.done));
+  const formulaText=()=>page.locator('#preview>blockquote:first-of-type .math-block').allTextContents();
+  assert.equal((await formulaText()).length,3);for(const t of await formulaText())assert.doesNotMatch(t,/[<>]/);
+  assert.equal(await page.locator('mjx-merror').count(),0);
+  await page.screenshot({path:'../build-fpks/callout-dark-normal.png'});
+  await page.setViewportSize({width:620,height:900});
+  await page.evaluate(()=>fpksReceive({type:'theme',colors:{page:'#faf9f6',ink:'#302b27',muted:'#766f65',accent:'#b75224',line:'#dcd7ce'},fontSize:19}));
+  await page.screenshot({path:'../build-fpks/callout-light-narrow.png'});
+  await page.locator('#print').click();await page.waitForFunction(()=>[...document.querySelectorAll('[data-equation]')].every(e=>e.dataset.done));
+  for(const t of await formulaText())assert.doesNotMatch(t,/[<>]/);
+  assert.match((await page.locator('.math-block').allTextContents())[3],/>/);
+  await page.pdf({path:'../build-fpks/callout-math.pdf',format:'A4'});
+  await page.setViewportSize({width:1280,height:900});
+ });
  await report('bounded cache and lazy rendering',async()=>{await load(Array.from({length:700},(_,i)=>`## item ${i}\n\n$x_{${i}}+1$\n`).join('\n'),false);await page.waitForTimeout(200);const d=await page.evaluate(()=>fpksDiagnostics());assert.ok(d.cacheBytes<=4*1024*1024);assert.ok(d.cacheEntries<=256);const rendered=await page.locator('mjx-container').count();assert.ok(rendered>0&&rendered<50)});
  assert.deepEqual(errors,[]);
  await fs.writeFile('../build-fpks/web-regression.json',JSON.stringify({checks,errors,diagnostics:await page.evaluate(()=>fpksDiagnostics())},null,2));

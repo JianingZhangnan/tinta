@@ -107,6 +107,14 @@ paste conversion, undo across snippet refresh, worker parsing, all 23 FPKS
 font reference cases, narrow overflow, dark math, printing and cache limits.
 Actual Tinta windows were also exercised using the computer-use skill.
 
+Callout display math reads Markdown's logical lines after quote/list markers
+have been removed. Literal TeX comparison operators remain intact. The
+`fpks-callout-math.md` fixture covers the density equations, multiline TeX,
+nested quotes, list containers, ordinary surrounding Markdown and code.
+Five parser checks and a browser regression cover these cases, including
+normal/narrow widths, dark/light display and PDF output. The installed app
+was checked with computer use against the original FPKS note without edits.
+
 The production profile retains MathJax/font third-party notices and their
 source manifest. Suite's MIT license is in `third_party/latex-suite`.
 Node dependency notices can be rebuilt from the locked package metadata.

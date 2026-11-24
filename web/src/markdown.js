@@ -19,13 +19,27 @@ markdown.inline.ruler.after('escape','fpks-math',(state,silent)=>{
  state.pos=end+count;return true;
 });
 markdown.block.ruler.before('fence','fpks-math-block',(state,line,end,silent)=>{
+ if(state.sCount[line]-state.blkIndent>=4)return false;
  const start=state.bMarks[line]+state.tShift[line];if(!state.src.startsWith('$$',start))return false;
- const contentStart=start+2;let close=state.src.indexOf('$$',contentStart);
- if(close<0)return false;
- let last=line;while(last<end&&state.eMarks[last]<close+2)last++;
- if(last>=end||state.src.slice(close+2,state.eMarks[last]).trim())return false;
+ // Markdown containers adjust bMarks/tShift rather than rewriting src.
+ // Read those logical lines: a raw src slice leaks every quote marker
+ // into TeX, including the marker before the closing $$.
+ const parts=[];let last=line,closed=false;
+ for(;last<end;last++){
+  const pos=state.bMarks[last]+state.tShift[last];
+  if(last>line&&pos<state.eMarks[last]&&state.sCount[last]<state.blkIndent)break;
+  const text=last===line?state.src.slice(start+2,state.eMarks[last]):state.getLines(last,last+1,state.blkIndent,false);
+  let close=-1;
+  while((close=text.indexOf('$$',close+1))>=0)if(!escaped(text,close))break;
+  if(close>=0){
+   if(text.slice(close+2).trim())return false;
+   parts.push(text.slice(0,close));closed=true;break;
+  }
+  parts.push(text);
+ }
+ if(!closed)return false;
  if(silent)return true;
- const token=state.push('fpks_math','',0);token.block=true;token.content=state.src.slice(contentStart,close);token.meta={display:true};token.map=[line,last+1];state.line=last+1;return true;
+ const token=state.push('fpks_math','',0);token.block=true;token.content=parts.join('\n');token.meta={display:true};token.map=[line,last+1];state.line=last+1;return true;
 },{alt:['paragraph','reference','blockquote','list']});
 markdown.renderer.rules.fpks_math=(tokens,index)=>{const token=tokens[index],id=equations.length;equations.push({tex:token.content,display:token.meta.display});const tag=token.meta.display?'div':'span';return `<${tag} class="math ${token.meta.display?'math-block':'math-inline'}" data-equation="${id}"></${tag}>`};
 export function renderMarkdown(source){equations=[];diagrams=[];return {html:markdown.render(source),equations,diagrams};}
