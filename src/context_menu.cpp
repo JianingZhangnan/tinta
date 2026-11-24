@@ -32,6 +32,7 @@ const std::vector<ContextMenuEntry>& contextMenuEntries(const App& app) {
         {CTX_OPEN, "ctx.open", L"Ctrl+O", false},
         {CTX_SAVE, "ctx.save", L"Ctrl+S", false},
         {CTX_SAVE_AS, "ctx.save_as", L"Ctrl+Shift+S", true},
+        {CTX_EDIT, "ctx.edit", L"Ctrl+E", true},
         {CTX_PRINT, "ctx.print", L"Ctrl+P", false},
         {CTX_EXPORT, "ctx.export", L"", true},
         {CTX_THEME, "ctx.theme", L"", false},
@@ -41,7 +42,7 @@ const std::vector<ContextMenuEntry>& contextMenuEntries(const App& app) {
     };
     static const std::vector<ContextMenuEntry> editingApplication = [] {
         auto entries = application;
-        entries.insert(entries.begin() + 4, {CTX_END_EDIT, "ctx.end_edit", L"", true});
+        entries[4] = {CTX_END_EDIT, "ctx.end_edit", L"Esc", true};
         return entries;
     }();
     return app.applicationMenu ? (app.editMode ? editingApplication : application)

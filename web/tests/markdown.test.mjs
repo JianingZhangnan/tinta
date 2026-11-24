@@ -18,9 +18,9 @@ y &\ge 1
   'a>b',
   String.raw`p>q\quad\text{且}\quad r<s`,
  ]);
- assert.match(result.html,/<blockquote>/);assert.match(result.html,/<table>/);
- assert.match(result.html,/<li>\s*<p>列表后续项目保持正常/);assert.match(result.html,/<strong>加粗<\/strong>/);
- assert.match(result.html,/&gt; \$\$/);assert.match(result.html,/<p>最后一个普通段落。<\/p>/);
+ assert.match(result.html,/<blockquote\b/);assert.match(result.html,/<table\b/);
+ assert.match(result.html,/<li\b[^>]*>\s*<p\b[^>]*>列表后续项目保持正常/);assert.match(result.html,/<strong>加粗<\/strong>/);
+ assert.match(result.html,/&gt; \$\$/);assert.match(result.html,/<p\b[^>]*>最后一个普通段落。<\/p>/);
 });
 test('math extraction preserves intentional greater-than symbols',()=>{
  assert.equal(renderMarkdown('> $$\n> x > y\\quad z\\ge 0\n> $$').equations[0].tex.trim(),String.raw`x > y\quad z\ge 0`);

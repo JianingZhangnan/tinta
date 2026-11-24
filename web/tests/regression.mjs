@@ -46,6 +46,38 @@ try{
   await type('zzfpks');assert.match(await docText(),/ZFPKS/);await page.keyboard.press('Control+z');assert.doesNotMatch(await docText(),/ZFPKS/);
   await page.unroute('**/profile/snippets.js');await page.evaluate(()=>fpksReceive({type:'profileChanged'}));
  });
+ await report('native reading/editing mode updates preserve content and undo history',async()=>{
+  await load('$x$');await type(' marker');const before=await docText();
+  await page.evaluate(()=>fpksReceive({type:'mode',mode:'read',session:fpksDiagnostics().session}));
+  assert.equal((await page.evaluate(()=>fpksDiagnostics())).mode,'read');
+  await page.evaluate(()=>fpksReceive({type:'mode',mode:'split',session:fpksDiagnostics().session}));
+  assert.equal(await docText(),before);await page.keyboard.press('Control+z');assert.equal(await docText(),'$x$');
+  await page.evaluate(()=>fpksReceive({type:'mode',mode:'read',session:'stale-native-message'}));
+  assert.equal((await page.evaluate(()=>fpksDiagnostics())).mode,'split');
+ });
+ await report('source and preview scroll in both directions using content anchors',async()=>{
+  const text=await fs.readFile('../tests/fixtures/fpks-scroll-sync.md','utf8');await load(text);
+  const scroll=async(side,top)=>{await page.locator(side==='editor'?'.cm-scroller':'#preview').evaluate((e,top)=>{e.dispatchEvent(new WheelEvent('wheel',{deltaY:1,bubbles:true}));e.scrollTop=top},top);await page.waitForTimeout(240)};
+  const aligned=async()=>{await page.waitForFunction(()=>{const s=fpksDiagnostics().scroll;return Math.abs(s.editor-s.preview)<2.2},{},{timeout:5000});};
+  await scroll('editor',700);await aligned();
+  await scroll('editor',1550);await aligned();
+  await scroll('preview',900);await aligned();
+  await scroll('preview',1900);await aligned();
+  const before=await page.evaluate(()=>fpksDiagnostics().scroll);await page.waitForTimeout(200);const after=await page.evaluate(()=>fpksDiagnostics().scroll);
+  assert.ok(Math.abs(before.editor-after.editor)<.1,'scrolling settles without feedback oscillation');
+  await page.screenshot({path:'../build-fpks/scroll-sync-normal.png'});
+  await page.locator('#mode-toggle').click();assert.equal((await page.evaluate(()=>fpksDiagnostics())).mode,'read');
+  await scroll('preview',1200);const anchor=(await page.evaluate(()=>fpksDiagnostics())).scroll.preview;
+  await page.locator('#mode-toggle').click();await aligned();assert.ok(Math.abs((await page.evaluate(()=>fpksDiagnostics())).scroll.editor-anchor)<2.2,'return to editing preserves the reading position');
+  await page.setViewportSize({width:700,height:800});await page.waitForTimeout(200);await scroll('editor',1000);await aligned();await scroll('preview',1700);await aligned();
+  await page.screenshot({path:'../build-fpks/scroll-sync-narrow.png'});
+  await page.locator('#source-toggle').click();assert.equal((await page.evaluate(()=>fpksDiagnostics())).mode,'source');
+  await page.locator('#source-toggle').click();await aligned();
+  await page.locator('.cm-content').click();await page.keyboard.press('Control+Home');await page.waitForTimeout(250);assert.ok(await page.locator('#preview').evaluate(e=>e.scrollTop<5));
+  await page.keyboard.press('Control+End');await page.waitForTimeout(250);assert.ok(await page.locator('#preview').evaluate(e=>e.scrollHeight-e.clientHeight-e.scrollTop<5));
+  assert.equal(await page.locator('nav').count(),0,'the extra mode toolbar is absent');
+  await page.setViewportSize({width:1280,height:900});
+ });
  await report('large worker parsing coalesces rapid document changes',async()=>{
   const large='# Worker document\n\n'+('A line of **Markdown** text.\n\n'.repeat(12000));
   await page.evaluate(async text=>{await Promise.all([fpksReceive({type:'document',session:'worker-a',text:text+'\n$A$',edit:false}),fpksReceive({type:'document',session:'worker-b',text:text+'\n$B$',edit:false}),fpksReceive({type:'document',session:'worker-c',text:text+'\n$C$',edit:false})])},large);

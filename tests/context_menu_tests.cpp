@@ -40,13 +40,19 @@ int main() {
     check(contextMenuItemEnabled(app, CTX_COPY_PATH), "saved document can copy its file path");
     check(contextMenuItemEnabled(app, CTX_SAVE_AS), "reading mode can save a copy");
     check(!contextMenuItemEnabled(app, CTX_SAVE), "reading mode cannot overwrite from a stale editor buffer");
+    bool editEntry = false;
+    for (const auto& entry : contextMenuEntries(app)) editEntry |= entry.action == CTX_EDIT;
+    check(editEntry && contextMenuItemEnabled(app, CTX_EDIT), "the logo menu opens the current document in the editor");
     app.currentFile.clear();
     app.editMode = true;
     app.editorText = L"unsaved text";
     app.editorDirty = true;
     check(contextMenuItemEnabled(app, CTX_END_EDIT), "an editor can exit through the application menu");
     bool exitEntry = false;
-    for (const auto& entry : contextMenuEntries(app)) exitEntry |= entry.action == CTX_END_EDIT;
+    for (const auto& entry : contextMenuEntries(app)) {
+        exitEntry |= entry.action == CTX_END_EDIT;
+        check(entry.action != CTX_EDIT, "the active editor has Exit editing rather than a duplicate Edit command");
+    }
     check(exitEntry, "the editor application menu includes Exit editing");
     check(!contextMenuItemEnabled(app, CTX_COPY_PATH), "untitled editor cannot copy a path");
     check(contextMenuItemEnabled(app, CTX_SAVE) && contextMenuItemEnabled(app, CTX_SAVE_AS),

@@ -40,6 +40,17 @@ export async function createEditor(parent:HTMLElement,doc:string,settings:any,sn
  if(cm.mathPreviewEnabled)extensions.push(cursorTooltipField.extension,cursorTooltipBaseTheme,tooltips({position:'absolute'}));
  if(cm.highlightDollarEnabled)extensions.push(highlight_dollar);
  const view=new EditorView({parent,state:EditorState.create({doc,extensions})});
- const result={view,snippetCount:snippets.length,async reloadSnippets(source:string){const next=await parseSnippets(source,{},'fpks-shared-snippets.js');const nextConfig=processLatexSuiteSettings(next,config);view.dispatch({effects:suiteConfig.reconfigure([getLatexSuiteConfigExtension(nextConfig),keymap.of(getKeymaps(nextConfig))])});result.snippetCount=next.length}};
+ const result={view,snippetCount:snippets.length,
+  scrollAnchor(){
+   const scroll=view.scrollDOM,top=Math.max(0,scroll.getBoundingClientRect().top-view.documentTop);
+   const block=view.lineBlockAtHeight(top),line=view.state.doc.lineAt(block.from).number-1;
+   return {line:line+Math.max(0,Math.min(.999,(top-block.top)/Math.max(1,block.height))),bottom:scroll.scrollHeight>scroll.clientHeight+2&&scroll.scrollTop>=scroll.scrollHeight-scroll.clientHeight-2};
+  },
+  scrollToAnchor(anchor:any,done:Function){
+   const index=Math.max(0,Math.min(view.state.doc.lines-1,Math.floor(anchor.line))),line=view.state.doc.line(index+1);
+   view.dispatch({effects:EditorView.scrollIntoView(line.from,{y:'start',yMargin:0})});
+   view.requestMeasure({read:()=>{const block=view.lineBlockAt(line.from);return anchor.bottom?view.scrollDOM.scrollHeight:view.scrollDOM.scrollTop+view.documentTop-view.scrollDOM.getBoundingClientRect().top+block.top+block.height*(anchor.line-index);},write:top=>{view.scrollDOM.scrollTop=anchor.line<=0?0:top;done();}});
+  },
+  async reloadSnippets(source:string){const next=await parseSnippets(source,{},'fpks-shared-snippets.js');const nextConfig=processLatexSuiteSettings(next,config);view.dispatch({effects:suiteConfig.reconfigure([getLatexSuiteConfigExtension(nextConfig),keymap.of(getKeymaps(nextConfig))])});result.snippetCount=next.length}};
  return result;
 }

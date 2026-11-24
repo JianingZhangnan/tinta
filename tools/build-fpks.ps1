@@ -27,14 +27,19 @@ $configure = '"{0}" -arch=x64 -host_arch=x64 >nul && "{1}" -S "{2}" -B "{3}" -G 
 if (Test-Path -LiteralPath (Join-Path $Md4cSource 'src\md4c.c')) { $configure += ' "-DFETCHCONTENT_SOURCE_DIR_MD4C={0}"' -f $Md4cSource }
 & cmd.exe /d /s /c $configure
 if ($LASTEXITCODE) { throw 'CMake configure failed.' }
-$targets = if ($Verify) { 'tinta input_tests math_parser_tests math_layout_tests edit_delta_tests' } else { 'tinta' }
+$targets = if ($Verify) { 'tinta input_tests math_parser_tests math_layout_tests edit_delta_tests context_menu_tests' } else { 'tinta' }
 $compile = '"{0}" -arch=x64 -host_arch=x64 >nul && "{1}" --build "{2}" --target {3} -j 8' -f $dev,$cmake,$BuildDirectory,$targets
 & cmd.exe /d /s /c $compile
 if ($LASTEXITCODE) { throw 'Native build failed.' }
 if ($Verify) {
-    & $ctest --test-dir $BuildDirectory -R 'fpks_edit_delta|performance_regressions|input_shortcuts|math_markdown|math_parser|math_layout' --output-on-failure
+    & $ctest --test-dir $BuildDirectory -R '^(fpks_edit_delta|performance_regressions|input_shortcuts|math_markdown|math_parser|math_layout|context_menu|edit_preview_scroll_sync|split_scrollbars)$' --output-on-failure
     if ($LASTEXITCODE) { throw 'Native regression tests failed.' }
     Push-Location (Join-Path $root 'web')
-    try { & node.exe tests/regression.mjs; if ($LASTEXITCODE) { throw 'Browser regression tests failed.' } } finally { Pop-Location }
+    try {
+        & node.exe --test tests/*.test.mjs
+        if ($LASTEXITCODE) { throw 'Markdown parser tests failed.' }
+        & node.exe tests/regression.mjs
+        if ($LASTEXITCODE) { throw 'Browser regression tests failed.' }
+    } finally { Pop-Location }
 }
 Write-Output "Built: $BuildDirectory\tinta.exe"

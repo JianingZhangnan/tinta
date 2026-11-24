@@ -10,7 +10,7 @@ try{
  await page.goto('http://127.0.0.1:18734/');
  await page.waitForFunction(()=>window.fpksDiagnostics?.().version==='4.1.3',{},{timeout:30000});
  await page.waitForSelector('mjx-container');
- await page.locator('button[data-mode="split"]').click();
+ await page.locator('#mode-toggle').click();
  await page.waitForSelector('.cm-content',{timeout:30000});
  await page.waitForTimeout(250);
  const editor=page.locator('.cm-content');await editor.click();await page.keyboard.press('Control+End');await page.keyboard.press('Enter');await page.keyboard.type('mkddnt',{delay:30});await page.keyboard.type('3',{delay:30});await page.keyboard.press('Tab');

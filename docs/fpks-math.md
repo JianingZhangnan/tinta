@@ -50,9 +50,11 @@ to `D:\Program Files\_cache\Tinta\WebView2` for this machine's install path;
 `TINTA_FPKS_CACHE` overrides it. Retain the original executable for rollback
 and disable upstream automatic updates for this custom build.
 
-Reading: press E or double-click the preview to edit. The toolbar switches
-between reading, source and split view. Ctrl+S saves, Ctrl+Shift+S saves as,
-Ctrl+O opens a file and Ctrl+Shift+E returns to reading. FPKS snippets, Tab and
+Use the native top-left Tinta icon menu to enter or finish editing. The extra
+top mode toolbar has been removed. The small bottom controls read/resume
+editing and hide/show the preview. Reading also accepts E or double-click.
+Ctrl+S saves, Ctrl+Shift+S saves as, Ctrl+O opens a file and Ctrl+Shift+E returns
+to reading. FPKS snippets, Tab and
 Shift+Tab placeholders, matrix Enter/Tab, automatic fractions, bracket
 enlargement, tabout, paired-dollar deletion and equation tooltips use Suite's
 own implementation. Paste converts `\(...\)` and `\[...\]` as configured in
@@ -80,6 +82,16 @@ Plain-text documents at least 8 MiB open directly in the native source view,
 render visible lines and defer preview, syntax highlighting, wrapping and
 whole-document word counts. Normal saved preferences are preserved. This is
 not a memory-mapped editor: the complete file still occupies source buffers.
+
+The two editing panes scroll in both directions using Markdown source-line
+anchors, including nested quotes, tables, code and display equations. Source
+line fractions account for wrapped lines. Frame scheduling, expected scroll
+positions and input ownership prevent feedback loops. Reflow and lazy math
+invalidate the preview's geometry cache; source anchors retain the current
+position across reading/editing and source-only view changes. Ctrl+Home/End
+synchronize document boundaries. Native menu saves keep CodeMirror history.
+The `fpks-scroll-sync.md` mixed fixture is exercised at normal/narrow widths
+with both scroll directions and mode changes, as well as in actual windows.
 
 Measured here on 2026-11-23 with fresh processes and warm OS/file caches:
 

@@ -6,6 +6,7 @@
 #include "edit_delta.h"
 #include "export.h"
 #include "input.h"
+#include "overlays.h"
 #include "tabs.h"
 #include "utils.h"
 #include <WebView2.h>
@@ -29,7 +30,7 @@ struct Panel {
     ComPtr<ICoreWebView2Controller> controller;
     ComPtr<ICoreWebView2> web;
     std::wstring assets,profile;
-    std::string path,session;
+    std::string path,session,mode;
     const void* root=nullptr;
     int tab=-1;
     unsigned long long revision=0,sequence=0;
@@ -80,6 +81,9 @@ void refreshLines(App& app){
 }
 void synchronize(App& app){
     if(!panel.ready||!panel.wanted)return;
+    // Saving or rebuilding native preview data does not replace the editor's
+    // document. Keep CodeMirror history and scroll position across that work.
+    if(panel.path==app.currentFile&&panel.tab==app.activeTab&&panel.editing&&app.editMode&&panel.revision==app.editorTextRevision)panel.root=app.root.get();
     bool changed=panel.path!=app.currentFile||panel.tab!=app.activeTab||panel.root!=app.root.get()||panel.editing!=app.editMode;
     if(!changed&&panel.editing&&panel.revision!=app.editorTextRevision)changed=true;
     if(changed){
@@ -93,7 +97,12 @@ void synchronize(App& app){
             auto folder=fs::path(toWide(app.currentFile)).parent_path().wstring();
             mapped->SetVirtualHostNameToFolderMapping(L"document.tinta.local",folder.c_str(),COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);
         }
-        post("{\"type\":\"document\",\"session\":"+quote(panel.session)+",\"path\":"+quote(app.currentFile)+",\"text\":"+quote(text)+",\"edit\":"+(app.editMode?"true":"false")+",\"dirty\":"+(app.editorDirty?"true":"false")+",\"colors\":"+colors(app)+",\"fontSize\":"+std::to_string(19*app.zoomFactor)+"}");
+        panel.mode=!app.editMode||app.editorReadingPreview?"read":app.editorShowPreview?"split":"source";
+        post("{\"type\":\"document\",\"session\":"+quote(panel.session)+",\"path\":"+quote(app.currentFile)+",\"text\":"+quote(text)+",\"edit\":"+(app.editMode?"true":"false")+",\"mode\":"+quote(panel.mode)+",\"dirty\":"+(app.editorDirty?"true":"false")+",\"colors\":"+colors(app)+",\"fontSize\":"+std::to_string(19*app.zoomFactor)+"}");
+    }
+    const std::string mode=!app.editMode||app.editorReadingPreview?"read":app.editorShowPreview?"split":"source";
+    if(panel.mode!=mode){
+        panel.mode=mode;post("{\"type\":\"mode\",\"mode\":"+quote(mode)+",\"session\":"+quote(panel.session)+"}");
     }
     if(panel.background.r!=app.theme.background.r||panel.background.g!=app.theme.background.g||panel.foreground.r!=app.theme.text.r||panel.zoom!=app.zoomFactor){
         panel.background=app.theme.background;panel.foreground=app.theme.text;panel.zoom=app.zoomFactor;
@@ -114,6 +123,22 @@ void message(App& app,const std::string& text){
         post("{\"type\":\"diagram\",\"session\":"+quote(panel.session)+",\"generation\":"+std::to_string(integer(m,"generation"))+",\"id\":"+std::to_string(integer(m,"id"))+",\"svg\":"+quote(exportDiagramSvg(app,source))+"}");return;
     }else if(type=="edit"){
         if(!app.editMode){enterEditMode(app);panel.editing=true;panel.revision=app.editorTextRevision;panel.root=app.root.get();}
+        panel.mode=app.editorReadingPreview?"read":app.editorShowPreview?"split":"source";
+    }else if(type=="mode"){
+        const auto mode=field(m,"mode");
+        if(mode!="read"&&mode!="source"&&mode!="split")return;
+        if(mode!="read"&&!app.editMode)enterEditMode(app);
+        if(app.editMode){
+            setEditorReadingPreview(app,mode=="read");
+            if(mode!="read")app.editorShowPreview=mode=="split";
+        }
+        panel.editing=app.editMode;panel.root=app.root.get();panel.revision=app.editorTextRevision;panel.mode=mode;
+    }else if(type=="contextMenu"){
+        const float x=static_cast<float>(integer(m,"x"));
+        const float y=static_cast<float>(integer(m,"y"))+chromeTopHeight(app);
+        openContextMenu(app,x,y,false);
+    }else if(type=="exitEdit"){
+        refreshLines(app);exitEditMode(app);
     }else if(type=="changes"){
         if(!app.editMode)return;
         const auto* changes=m.get("changes");if(!changes||changes->type!=json::Json::Array)return;
@@ -218,7 +243,7 @@ bool frame(App& app){
     if(!panel.ready||!panel.controller)return false;
     RECT bounds{};GetClientRect(app.hwnd,&bounds);bounds.top=static_cast<LONG>(chromeTopHeight(app));
     panel.controller->put_Bounds(bounds);
-    if(!panel.visible){ComPtr<ICoreWebView2_3> resume;if(SUCCEEDED(panel.web.As(&resume)))resume->Resume();panel.controller->put_IsVisible(TRUE);panel.visible=true;}
+    if(!panel.visible){ComPtr<ICoreWebView2_3> resume;if(SUCCEEDED(panel.web.As(&resume)))resume->Resume();panel.controller->put_IsVisible(TRUE);if(app.editMode&&!app.editorReadingPreview)panel.controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);panel.visible=true;}
     return true;
 }
 void shutdown(){if(panel.app)KillTimer(panel.app->hwnd,30);hide();if(panel.controller)panel.controller->Close();panel.web.Reset();panel.controller.Reset();panel.environment.Reset();panel.app=nullptr;}
